@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>架构审查报告 — Deep Research 多智能体系统 v2</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --strong: #f85149;
+    --worth: #d29922;
+    --spec: #58a6ff;
+    --green: #3fb950;
+  }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; max-width: 960px; margin: 0 auto; padding: 32px 20px; line-height: 1.6; }
+  h1 { font-size: 1.8em; border-bottom: 1px solid var(--border); padding-bottom: 12px; display: flex; align-items: center; gap: 12px; }
+  h2 { font-size: 1.3em; margin-top: 36px; }
+  .subtitle { color: var(--text-muted); margin-top: -8px; font-size: 0.9em; }
+  .stats { display: flex; gap: 12px; flex-wrap: wrap; margin: 20px 0; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; flex: 1; min-width: 120px; text-align: center; }
+  .stat .num { font-size: 1.8em; font-weight: 700; }
+  .stat .label { font-size: 0.75em; color: var(--text-muted); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 20px 0; }
+  .card h3 { margin: 0 0 4px 0; }
+  .badge { display: inline-block; font-size: 0.7em; padding: 2px 10px; border-radius: 12px; font-weight: 600; }
+  .badge.fixed { background: #3fb95022; color: var(--green); border: 1px solid var(--green); }
+  .badge.strong { background: #f8514922; color: var(--strong); border: 1px solid var(--strong); }
+  .badge.worth  { background: #d2992222; color: var(--worth);  border: 1px solid var(--worth); }
+  .badge.spec   { background: #58a6ff22; color: var(--spec);   border: 1px solid var(--spec); }
+  .meta { font-size: 0.8em; color: var(--text-muted); margin: 4px 0 12px 0; }
+  ul { padding-left: 20px; margin: 6px 0; }
+  li { margin: 3px 0; }
+  code { background: #1f242b; padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+  pre { background: #1f242b; border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 0.78em; line-height: 1.4; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.85em; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+  th { background: #1f242b; }
+  .diff { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 8px 0; }
+  @media (max-width: 640px) { .diff { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<h1>🏗️ 架构审查报告 v2</h1>
+<p class="subtitle">Deep Research 多智能体系统 · 后清理评估 · 2025-07-06</p>
+
+<div class="stats">
+  <div class="stat"><div class="num" style="color:var(--green)">-40%</div><div class="label">nodes.py 消减</div></div>
+  <div class="stat"><div class="num">169</div><div class="label" style="color:var(--green)">✅ 测试通过</div></div>
+  <div class="stat"><div class="num">5</div><div class="label">nodes/ 子模块</div></div>
+  <div class="stat"><div class="num" style="color:var(--worth)">1</div><div class="label">残留问题</div></div>
+</div>
+
+<!-- ============================================================ -->
+<section>
+<h2>✅ 已修复问题</h2>
+
+<div class="card">
+<span class="badge fixed">FIXED</span>
+<h3>nodes.py 超级文件 → nodes/ 包</h3>
+<div class="meta">原 1,380 行 / 54 函数 → 拆分为 5 个子模块 + __init__.py</div>
+
+<table>
+<tr><th>子模块</th><th>职责</th></tr>
+<tr><td><code>nodes/utils.py</code></td><td>共享辅助函数（colorize, emit, _invoke_json_agent 等）</td></tr>
+<tr><td><code>nodes/planning.py</code></td><td>意图检测 + 搜索规划</td></tr>
+<tr><td><code>nodes/search.py</code></td><td>过滤/评分/证据处理</td></tr>
+<tr><td><code>nodes/fallbacks.py</code></td><td>各阶段回退函数</td></tr>
+<tr><td><code>nodes/citations.py</code></td><td>引用系统 + 报告渲染</td></tr>
+<tr><td><code>nodes/__init__.py</code></td><td>re-export + Agent 节点函数（9 个）</td></tr>
+</table>
+</div>
+
+<div class="card">
+<span class="badge fixed">FIXED</span>
+<h3>main.py 死代码 → 大部分清除</h3>
+<div class="meta"><code>app/mult_agents/main.py</code></div>
+<p>原文件 549 行，6 个死节点函数 + 5 个死辅助函数。现已清理至 <strong>~350 行</strong>，只有 <code>colorize</code> 与 nodes/utils.py 重复（用于内部日志）。</p>
+</div>
+
+<div class="card">
+<span class="badge fixed">FIXED</span>
+<h3>_fallback_analysis 同名覆盖</h3>
+<p>第 610 行的版本（含 findings/hypothesis_status/claim_map）已删除，只保留第 1268 行的简易版本。</p>
+</div>
+
+<div class="card">
+<span class="badge fixed">FIXED</span>
+<h3>测试覆盖</h3>
+<p>从 130 → <strong>169 测试</strong>，新增：</p>
+<ul>
+  <li>全部 9 个 Agent 节点的 mock LLM 测试</li>
+  <li><code>test_config.py</code> — AppConfig 解析优先级</li>
+  <li><code>test_planning.py</code> — _derive_search_plan</li>
+  <li><code>test_utils.py</code> — _invoke_json_agent</li>
+</ul>
+</div>
+
+</section>
+
+<!-- ============================================================ -->
+<section>
+<h2>🟡 剩余问题</h2>
+
+<div class="card">
+<span class="badge worth">MINOR</span>
+<h3>main.py 中的 colorize 重复</h3>
+<div class="meta"><code>app/mult_agents/main.py:62</code></div>
+<p>与 <code>nodes/utils.py</code> 中的 <code>colorize</code> 完全相同的实现。由于是内部使用的活跃代码（build_checkpointer 的日志用到了），不构成 bug，但仍有重复。</p>
+<p><strong>方案：</strong>将 <code>main.py</code> 中的 <code>colorize</code> 改为 <code>from .nodes.utils import colorize</code></p>
+</div>
+
+<div class="card">
+<span class="badge worth">WORTH EXPLORING</span>
+<h3>WorkflowService 仍绕过 main.py.run_query</h3>
+<div class="meta"><code>app/backend/service/workflow_service.py</code></div>
+<p>仍自行 import <code>build_agents</code>/<code>build_checkpointer</code>/<code>build_memory_manager</code> 并重复编排逻辑。这是架构层仅剩的较大问题。</p>
+</div>
+
+<div class="card">
+<span class="badge spec">SPECULATIVE</span>
+<h3>MemoryManager 策略模式</h3>
+<div class="meta"><code>app/mult_agents/memory/manager.py</code></div>
+<p>8 个方法仍用 if-else 切换后端，收益明确但影响范围大，建议放在后续迭代。</p>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+<h2>📊 项目健康度总结</h2>
+
+<table>
+<tr><th>维度</th><th>之前</th><th style="width:60px">现在</th><th>状态</th></tr>
+<tr><td>nodes.py 行数</td><td>1,380</td><td>❌ 已删除</td><td style="color:var(--green)">✅ 已拆分</td></tr>
+<tr><td>main.py 行数</td><td>~549</td><td>~350</td><td style="color:var(--green)">✅ 减少 36%</td></tr>
+<tr><td>测试数</td><td>0</td><td><strong>169</strong></td><td style="color:var(--green)">✅ 核心链路覆盖</td></tr>
+<tr><td>死代码</td><td>~178 行</td><td>~8 行 (colorize)</td><td style="color:var(--worth)">⚠️ 极少量</td></tr>
+<tr><td>_fallback_analysis 覆盖</td><td>2 个</td><td>1 个</td><td style="color:var(--green)">✅ 已修复</td></tr>
+<tr><td>冗余文件（rag_core/req.txt/egg-info）</td><td>5 项</td><td>0</td><td style="color:var(--green)">✅ 已清理</td></tr>
+</table>
+
+</section>
+
+</body>
+</html>

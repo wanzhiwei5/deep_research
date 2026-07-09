@@ -1,0 +1,29 @@
+# 依赖
+.venv/
+node_modules/
+
+# 构建产物
+dist/
+*.egg-info/
+*.tsbuildinfo
+
+# 缓存
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# 运行时数据
+*.db
+output/
+
+# IDE / OS
+.vscode/
+.DS_Store
+Thumbs.db
+
+# 环境变量
+.env
+
+# 前端
+front/*/node_modules/
+front/*/dist/
