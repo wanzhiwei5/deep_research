@@ -45,6 +45,7 @@ logger = logging.getLogger("mult_agents")
 MEMORY_MANAGER: Optional[MemoryManager] = None
 CHECKPOINTER_CONTEXT = None
 
+
 def build_memory_manager(config: AppConfig) -> Optional[MemoryManager]:
     if not config.enable_memory:
         return None
@@ -99,19 +100,29 @@ def build_checkpointer(config: AppConfig):
                 logger.info("%s %s", colorize("[memory]", "cyan"), message)
         else:
             try:
-                CHECKPOINTER_CONTEXT = postgres_saver.from_conn_string(config.postgres_dsn)
+                CHECKPOINTER_CONTEXT = postgres_saver.from_conn_string(
+                    config.postgres_dsn
+                )
                 checkpointer = CHECKPOINTER_CONTEXT.__enter__()
                 checkpointer.setup()
-                logger.info("%s 使用 PostgreSQL checkpointer", colorize("[memory]", "green"))
+                logger.info(
+                    "%s 使用 PostgreSQL checkpointer", colorize("[memory]", "green")
+                )
                 return checkpointer
             except Exception as exc:
-                logger.warning("%s PostgreSQL checkpointer 初始化失败: %s", colorize("[memory]", "yellow"), exc)
+                logger.warning(
+                    "%s PostgreSQL checkpointer 初始化失败: %s",
+                    colorize("[memory]", "yellow"),
+                    exc,
+                )
     if backend in {"redis", "auto"} and config.enable_memory and config.redis_url:
         from langgraph.checkpoint.redis import RedisSaver
 
         candidate_urls = [config.redis_url]
         if "redis://root:" in config.redis_url:
-            candidate_urls.append(config.redis_url.replace("redis://root:", "redis://:"))
+            candidate_urls.append(
+                config.redis_url.replace("redis://root:", "redis://:")
+            )
         last_exc = None
         for url in candidate_urls:
             try:
@@ -128,7 +139,11 @@ def build_checkpointer(config: AppConfig):
                 colorize("[memory]", "yellow"),
             )
         else:
-            logger.warning("%s Redis checkpointer 初始化失败，降级内存: %s", colorize("[memory]", "yellow"), last_exc)
+            logger.warning(
+                "%s Redis checkpointer 初始化失败，降级内存: %s",
+                colorize("[memory]", "yellow"),
+                last_exc,
+            )
     if backend == "memory":
         logger.info("%s 使用内存 checkpointer", colorize("[memory]", "green"))
     return InMemorySaver()
@@ -140,11 +155,21 @@ def parse_cli_args() -> argparse.Namespace:
     parser.add_argument("--tenant-id", type=str, default=None)
     parser.add_argument("--user-id", type=str, default=None)
     parser.add_argument("--thread-id", type=str, default=None)
-    parser.add_argument("--short-term-backend", choices=["postgres", "redis", "memory"], default=None)
-    parser.add_argument("--long-term-backend", choices=["postgres", "sqlite", "disabled"], default=None)
+    parser.add_argument(
+        "--short-term-backend", choices=["postgres", "redis", "memory"], default=None
+    )
+    parser.add_argument(
+        "--long-term-backend", choices=["postgres", "sqlite", "disabled"], default=None
+    )
     parser.add_argument("--long-term-scope", choices=["user", "thread"], default=None)
-    parser.add_argument("--save-conversation-task", choices=["true", "false"], default=None)
-    parser.add_argument("--checkpointer-backend", choices=["postgres", "redis", "memory", "auto"], default=None)
+    parser.add_argument(
+        "--save-conversation-task", choices=["true", "false"], default=None
+    )
+    parser.add_argument(
+        "--checkpointer-backend",
+        choices=["postgres", "redis", "memory", "auto"],
+        default=None,
+    )
     parser.add_argument("--enable-memory", choices=["true", "false"], default=None)
     parser.add_argument("--enable-milvus", choices=["true", "false"], default=None)
     parser.add_argument("--memory-top-k", type=int, default=None)
@@ -199,7 +224,9 @@ class AgentBundle:
     writer: any
 
 
-def build_agent(model: str, api_key: str, prompt_key: str, temperature: float, tools: list):
+def build_agent(
+    model: str, api_key: str, prompt_key: str, temperature: float, tools: list
+):
     if api_key:
         os.environ["DASHSCOPE_API_KEY"] = api_key
     llm = ChatTongyi(model=model, temperature=temperature)
@@ -240,7 +267,9 @@ def run_query(app, config: AppConfig, query: str, memory_manager=None):
                 max_memories=config.memory_top_k,
             )
         except Exception as exc:
-            logger.warning("%s 读取记忆失败，忽略本轮注入: %s", colorize("[memory]", "yellow"), exc)
+            logger.warning(
+                "%s 读取记忆失败，忽略本轮注入: %s", colorize("[memory]", "yellow"), exc
+            )
     state = create_initial_state(
         query=query,
         max_iterations=config.max_iterations,
@@ -264,7 +293,9 @@ def run_query(app, config: AppConfig, query: str, memory_manager=None):
                 answer=final,
             )
         except Exception as exc:
-            logger.warning("%s 持久化记忆失败，已跳过: %s", colorize("[memory]", "yellow"), exc)
+            logger.warning(
+                "%s 持久化记忆失败，已跳过: %s", colorize("[memory]", "yellow"), exc
+            )
     return final, route
 
 
@@ -278,7 +309,9 @@ def read_user_input(prompt: str = "你: ") -> str:
             raise EOFError
         encoding = sys.stdin.encoding or "utf-8"
         recovered = raw.decode(encoding, errors="replace").rstrip("\r\n")
-        logger.warning("%s 检测到输入编码异常，已使用容错解码。", colorize("[input]", "yellow"))
+        logger.warning(
+            "%s 检测到输入编码异常，已使用容错解码。", colorize("[input]", "yellow")
+        )
         return recovered
 
 
@@ -309,10 +342,20 @@ def main():
             if query.lower() in {"quit", "exit", "退出"}:
                 break
             if query.lower() in {"/memory", "memory-status"} and MEMORY_MANAGER:
-                print(json.dumps(MEMORY_MANAGER.get_memory_stats(config.user_id), ensure_ascii=False, indent=2))
+                print(
+                    json.dumps(
+                        MEMORY_MANAGER.get_memory_stats(config.user_id),
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+                )
                 continue
             if query.lower() in {"/memory-trace", "memory-trace"} and MEMORY_MANAGER:
-                print(json.dumps(MEMORY_MANAGER.get_last_trace(), ensure_ascii=False, indent=2))
+                print(
+                    json.dumps(
+                        MEMORY_MANAGER.get_last_trace(), ensure_ascii=False, indent=2
+                    )
+                )
                 continue
             response, _ = run_query(app, config, query)
             print(f"\nAI: {response}\n")
